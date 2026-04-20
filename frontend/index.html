@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IEEE-CIS Fraud Detection — Metric &amp; Ethics Dashboard</title>
+    <meta name="description" content="Real-time fraud detection dashboard with performance metrics, threshold simulation, and LIME explainability." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="index.css" />
+</head>
+<body>
+
+<!-- ─── Header ───────────────────────────────────────── -->
+<header id="app-header">
+    <div class="header-inner">
+        <div class="header-brand">
+            <span class="brand-icon">🛡️</span>
+            <div>
+                <h1>Fraud Detection Dashboard</h1>
+                <p class="subtitle">IEEE-CIS Dataset · LightGBM + SMOTE/Tomek · LIME Explainability</p>
+            </div>
+        </div>
+        <div class="header-status" id="status-badge">
+            <span class="status-dot"></span>
+            <span class="status-text">Connecting…</span>
+        </div>
+    </div>
+</header>
+
+<main id="app-main">
+
+    <!-- ─── Section 1: Performance Grid ──────────────── -->
+    <section id="performance-section" class="section">
+        <h2 class="section-title">Model Performance</h2>
+        <p class="section-desc">Held-out test-set metrics · Traffic-light scoring</p>
+
+        <div id="metric-grid" class="metric-grid">
+            <!-- Precision -->
+            <div class="metric-card glass" id="card-precision">
+                <div class="metric-label">Precision</div>
+                <div class="metric-value" id="val-precision">—</div>
+                <div class="metric-bar-track"><div class="metric-bar-fill" id="bar-precision"></div></div>
+                <p class="metric-hint">Higher = fewer false alarms</p>
+            </div>
+            <!-- Recall -->
+            <div class="metric-card glass" id="card-recall">
+                <div class="metric-label">Recall</div>
+                <div class="metric-value" id="val-recall">—</div>
+                <div class="metric-bar-track"><div class="metric-bar-fill" id="bar-recall"></div></div>
+                <p class="metric-hint">Higher = fewer missed frauds</p>
+            </div>
+            <!-- F1 -->
+            <div class="metric-card glass" id="card-f1">
+                <div class="metric-label">F1-Score</div>
+                <div class="metric-value" id="val-f1">—</div>
+                <div class="metric-bar-track"><div class="metric-bar-fill" id="bar-f1"></div></div>
+                <p class="metric-hint">Harmonic mean of Precision &amp; Recall</p>
+            </div>
+            <!-- AUPRC -->
+            <div class="metric-card glass" id="card-auprc">
+                <div class="metric-label">AUPRC</div>
+                <div class="metric-value" id="val-auprc">—</div>
+                <div class="metric-bar-track"><div class="metric-bar-fill" id="bar-auprc"></div></div>
+                <p class="metric-hint">Area Under Precision-Recall Curve</p>
+            </div>
+        </div>
+
+        <!-- Bonus: ROC-AUC -->
+        <div class="roc-auc-strip glass">
+            <span>ROC-AUC</span>
+            <strong id="val-roc-auc">—</strong>
+        </div>
+    </section>
+
+    <!-- ─── Section 2: Threshold Slider ──────────────── -->
+    <section id="threshold-section" class="section">
+        <h2 class="section-title">Threshold Simulation</h2>
+        <p class="section-desc">Adjust the classification threshold and observe the Precision / Recall trade-off in real time.</p>
+
+        <div class="slider-container glass">
+            <div class="slider-header">
+                <label for="threshold-slider">Threshold</label>
+                <span class="slider-value" id="threshold-display">0.50</span>
+            </div>
+            <input type="range" id="threshold-slider" min="0.05" max="0.95" step="0.01" value="0.50" />
+        </div>
+
+        <div class="tradeoff-grid">
+            <div class="tradeoff-card glass tradeoff-friction" id="card-friction">
+                <div class="tradeoff-icon">⚠️</div>
+                <div class="tradeoff-label">Customer Friction</div>
+                <div class="tradeoff-sub">False Positives</div>
+                <div class="tradeoff-count" id="val-fp">—</div>
+                <div class="tradeoff-level" id="level-friction">—</div>
+            </div>
+            <div class="tradeoff-card glass tradeoff-loss" id="card-loss">
+                <div class="tradeoff-icon">💸</div>
+                <div class="tradeoff-label">Financial Loss</div>
+                <div class="tradeoff-sub">False Negatives</div>
+                <div class="tradeoff-count" id="val-fn">—</div>
+                <div class="tradeoff-level" id="level-loss">—</div>
+            </div>
+        </div>
+
+        <div class="sim-metrics glass" id="sim-metrics">
+            <div class="sim-metric"><span>Precision</span><strong id="sim-precision">—</strong></div>
+            <div class="sim-metric"><span>Recall</span><strong id="sim-recall">—</strong></div>
+            <div class="sim-metric"><span>F1</span><strong id="sim-f1">—</strong></div>
+        </div>
+    </section>
+
+    <!-- ─── Section 2.5: Interactive Curve Charts ──────────────── -->
+    <section id="curves-section" class="section">
+        <h2 class="section-title">Evaluation Curves</h2>
+        <p class="section-desc">ROC and Precision-Recall curves evaluated on the held-out Time-Series test split.</p>
+
+        <div class="metric-grid" style="grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+            <div class="glass curve-container" style="padding: 1.5rem; height: 320px; display: flex; flex-direction: column;">
+                <h3 style="font-size: 0.9rem; margin-bottom: 0.5rem; text-align: center; color: var(--text-secondary);">ROC Curve</h3>
+                <div style="flex: 1; position: relative;">
+                    <canvas id="rocChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="glass curve-container" style="padding: 1.5rem; height: 320px; display: flex; flex-direction: column;">
+                <h3 style="font-size: 0.9rem; margin-bottom: 0.5rem; text-align: center; color: var(--text-secondary);">Precision-Recall Curve</h3>
+                <div style="flex: 1; position: relative;">
+                    <canvas id="prChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ─── Section 3: Transaction Analyzer ──────────── -->
+    <section id="analyze-section" class="section">
+        <h2 class="section-title">Transaction Analyzer</h2>
+        <p class="section-desc">Analyze a transaction and view its LIME explanation. Load a sample from the test set or enter your own data.</p>
+
+        <div class="analyzer-row">
+            <!-- Controls -->
+            <div class="analyzer-controls glass">
+                <button class="btn btn-primary" id="btn-load-sample">Load Random Sample</button>
+                <textarea id="feature-json" rows="12" placeholder='{ "TransactionAmt": 100.0, "card1": 1234, ... }'></textarea>
+                <button class="btn btn-accent" id="btn-analyze">Analyze Transaction</button>
+                <div class="actual-label-row" id="actual-label-row" style="display:none;">
+                    <span>Actual label:</span>
+                    <span id="actual-label-value" class="badge">—</span>
+                </div>
+            </div>
+
+            <!-- Results -->
+            <div class="analyzer-results glass" id="analyzer-results" style="display:none;">
+                <div class="result-header">
+                    <span class="result-prediction" id="result-prediction">—</span>
+                    <span class="near-miss-badge" id="near-miss-badge" style="display:none;">⚡ Near-Miss</span>
+                </div>
+                <div class="probability-gauge">
+                    <div class="gauge-track"><div class="gauge-fill" id="gauge-fill"></div>
+                        <div class="gauge-marker" id="gauge-marker" title="Threshold"></div>
+                    </div>
+                    <div class="gauge-labels"><span>0.0 — Legitimate</span><span>Fraud — 1.0</span></div>
+                    <div class="probability-number">Score: <strong id="result-score">—</strong></div>
+                </div>
+
+                <!-- LIME chart -->
+                <h3 class="lime-title">Feature Contributions (LIME)</h3>
+                <div id="lime-chart" class="lime-chart"></div>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<footer id="app-footer">
+    <p>© 2026 · IEEE-CIS Fraud Detection · Built with LightGBM, FastAPI &amp; ❤️</p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="index.js?v=2"></script>
+</body>
+</html>
